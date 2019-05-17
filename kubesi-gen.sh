@@ -15,12 +15,12 @@ kind: KubeProxyConfiguration
 mode: ipvs
 """ > /etc/kubernetes/kubeadm-config.yaml
 
-kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
+kubeadm init --cgroup-driver=systemd --config /etc/kubernetes/kubeadm-config.yaml
 mkdir -p $HOME/.kube
 rm -f $HOME/.kube/config
 cp -f /etc/kubernetes/admin.conf ${HOME}/.kube/config
 
-kubectl apply -f https://raw.githubusercontent.com/hongzhenglin/kubeadm-ha/1.14.1/calico/calico.yaml
+kubectl apply -f https://raw.githubusercontent.com/hongzhenglin/kubeadm-ha/branch-1.14.1/calico/calico.yaml
 
 echo "Cluster create finished."
 
@@ -33,23 +33,24 @@ prompt = yes
 countryName                     = Country Name (2 letter code)
 countryName_value               = CN
 stateOrProvinceName             = State or Province Name (full name)
-stateOrProvinceName_value       = Beijing
+stateOrProvinceName_value       = gd
 localityName                    = Locality Name (eg, city)
-localityName_value              = Haidian
+localityName_value              = gz
 organizationName                = Organization Name (eg, company)
-organizationName_value          = Channelsoft
+organizationName_value          = eshore
 organizationalUnitName          = Organizational Unit Name (eg, section)
 organizationalUnitName_value    = R & D Department
 commonName                      = Common Name (eg, your name or your server\'s hostname)
 commonName_value                = *.multi.io
 emailAddress                    = Email Address
-emailAddress_value              = lentil1016@gmail.com
+emailAddress_value              = linhongz@gmail.com
 """ > ~/ikube/tls/openssl.cnf
+
 openssl req -newkey rsa:4096 -nodes -config ~/ikube/tls/openssl.cnf -days 3650 -x509 -out ~/ikube/tls/tls.crt -keyout ~/ikube/tls/tls.key
 
 kubectl create -n kube-system secret tls ssl --cert ~/ikube/tls/tls.crt --key ~/ikube/tls/tls.key
 kubectl apply -f https://raw.githubusercontent.com/hongzhenglin/kubeadm-ha/1.14.1/plugin/traefik.yaml
-kubectl apply -f https://raw.githubusercontent.com/honzhenglin/kubeadm-ha/1.14.1/plugin/metrics.yaml
+kubectl apply -f https://raw.githubusercontent.com/hongzhenglin/kubeadm-ha/1.14.1/plugin/metrics.yaml
 kubectl apply -f https://raw.githubusercontent.com/hongzhenglin/kubeadm-ha/1.14.1/plugin/kubernetes-dashboard.yaml
 
 echo "Plugin install finished."
