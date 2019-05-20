@@ -15,7 +15,7 @@ kind: KubeProxyConfiguration
 mode: ipvs
 """ > /etc/kubernetes/kubeadm-config.yaml
 
-kubeadm init --cgroup-driver=systemd --config /etc/kubernetes/kubeadm-config.yaml
+kubeadm init   --config /etc/kubernetes/kubeadm-config.yaml
 mkdir -p $HOME/.kube
 rm -f $HOME/.kube/config
 cp -f /etc/kubernetes/admin.conf ${HOME}/.kube/config
