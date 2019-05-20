@@ -105,7 +105,7 @@ vrrp_instance VI_1 {
     }
 }
 
-virtual_server ${VIP} 6443 {
+virtual_server ${VIP} 6444 {
     delay_loop 6
     lb_algo loadbalance
     lb_kind DR
@@ -201,6 +201,7 @@ commonName_value                = *.multi.io
 emailAddress                    = Email Address
 emailAddress_value              = hongzhenglin@gmail.com
 """ > ~/ikube/tls/openssl.cnf
+
 openssl req -newkey rsa:4096 -nodes -config ~/ikube/tls/openssl.cnf -days 3650 -x509 -out ~/ikube/tls/tls.crt -keyout ~/ikube/tls/tls.key
 kubectl create -n kube-system secret tls ssl --cert ~/ikube/tls/tls.crt --key ~/ikube/tls/tls.key
 kubectl apply -f https://raw.githubusercontent.com/hongzhenglin/kubeadm-ha/1.14.1/plugin/traefik.yaml
