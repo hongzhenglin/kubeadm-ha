@@ -1,5 +1,7 @@
 #!/bin/bash
 
+kubeadm reset -f
+
 function check_parm()
 {
   if [ "${2}" == "" ]; then
@@ -81,35 +83,22 @@ global
 defaults
     mode                    tcp
     log                     global
-    option                  tcplog
-    option                  dontlognull
     option                  redispatch
     retries                 3
-    timeout queue           1m
-    timeout connect         10s
-    timeout client          1m
-    timeout server          1m
-    timeout check           10s
-    maxconn                 3000
-
-listen stats
-    mode   http
-    bind :10086
-    stats   enable
-    stats   uri     /admin?stats
-    stats   auth    admin:admin
-    stats   admin   if TRUE
     
-frontend  k8s_https *:8443
+
+listen kube_apiserver
+    stats   enable
+    timeout server 15s
+    timeout connect 15s
+    bind    ${VIP}:8443
     mode      tcp
     maxconn      2000
-    default_backend     https_sri
-    
-backend https_sri
+ 
     balance      roundrobin
-    server master1-api ${CP0_IP}:6443  check inter 10000 fall 2 rise 2 weight 1
-    server master2-api ${CP1_IP}:6443  check inter 10000 fall 2 rise 2 weight 1
-    server master3-api ${CP2_IP}:6443  check inter 10000 fall 2 rise 2 weight 1
+    server k8s-master01 ${CP0_IP}:6443  check port 6443 inter 10000 fall 5 
+    server k8s-master02 ${CP1_IP}:6443  check port 6443 inter 10000 fall 5 
+    server k8s-master03 ${CP2_IP}:6443  check port 6443 inter 10000 fall 5 
 """ > ~/ikube/haproxy.cfg
 
 
@@ -117,6 +106,7 @@ echo ">>>>>>>>>Keepalived Configuration>>>>>>>>>"
 
 PRIORITY=(100 50 30)
 STATE=("MASTER" "BACKUP" "BACKUP")
+
 HEALTH_CHECK=""
 for index in 0 1 2; do
   HEALTH_CHECK=${HEALTH_CHECK}"""
@@ -138,13 +128,16 @@ done
 for index in 0 1 2; do
   ip=${IPS[${index}]}
   echo """
-global_defs {
-   router_id LVS_DEVEL
-}
+  global_defs {
+     router_id LVS_DEVEL
+  }
 
-vrrp_instance VI_1 {
+ 
+
+  vrrp_instance VI_1 {
     state ${STATE[${index}]}
     interface ${NET_IF}
+    lvs_sync_daemon_inteface ${NET_IF}
     virtual_router_id 80
     priority ${PRIORITY[${index}]}
     advert_int 1
@@ -155,19 +148,14 @@ vrrp_instance VI_1 {
     virtual_ipaddress {
         ${VIP}/24
     }
-}
+     #调用跟踪脚本
+    track_script {   
 
-virtual_server ${VIP} 6443 {
-    delay_loop 6
-    lb_algo loadbalance
-    lb_kind DR
-    net_mask 255.255.255.0
-    persistence_timeout 0
-    protocol TCP
+    }
+  }
 
-${HEALTH_CHECK}
-}
-""" > ~/ikube/keepalived-${index}.conf
+  """ > ~/ikube/keepalived-${index}.conf
+  
   scp ~/ikube/keepalived-${index}.conf ${ip}:/etc/keepalived/keepalived.conf
   scp ~/ikube/haproxy.cfg ${ip}:/etc/haproxy/haproxy.cfg
   ssh ${ip} "
@@ -202,7 +190,10 @@ kind: KubeProxyConfiguration
 mode: ipvs
 """ > /etc/kubernetes/kubeadm-config.yaml
 
+
+
 kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
+
 mkdir -p $HOME/.kube
 cp -f /etc/kubernetes/admin.conf ${HOME}/.kube/config
 
@@ -212,6 +203,7 @@ JOIN_CMD=`kubeadm token create --print-join-command`
 
 for index in 1 2; do
   ip=${IPS[${index}]}
+  echo "============begin add ${ip} control-plane ======"
   ssh $ip "mkdir -p /etc/kubernetes/pki/etcd; mkdir -p ~/.kube/"
   scp /etc/kubernetes/pki/ca.crt $ip:/etc/kubernetes/pki/ca.crt
   scp /etc/kubernetes/pki/ca.key $ip:/etc/kubernetes/pki/ca.key
