@@ -61,7 +61,59 @@ done
 
 mkdir -p ~/ikube/tls
 
+echo "============Keepalived+Haproxy Configuration Begin============"
+
+
 IPS=(${CP0_IP} ${CP1_IP} ${CP2_IP})
+
+echo ">>>>>>>>>Haproxy Configuration>>>>>>>>>"
+echo """
+global
+    log         127.0.0.1 local2
+    chroot      /var/lib/haproxy
+    pidfile     /var/run/haproxy.pid
+    maxconn     4000
+    user        haproxy
+    group       haproxy
+    daemon
+    stats socket /var/lib/haproxy/stats
+
+defaults
+    mode                    tcp
+    log                     global
+    option                  tcplog
+    option                  dontlognull
+    option                  redispatch
+    retries                 3
+    timeout queue           1m
+    timeout connect         10s
+    timeout client          1m
+    timeout server          1m
+    timeout check           10s
+    maxconn                 3000
+
+listen stats
+    mode   http
+    bind :10086
+    stats   enable
+    stats   uri     /admin?stats
+    stats   auth    admin:admin
+    stats   admin   if TRUE
+    
+frontend  k8s_https *:8443
+    mode      tcp
+    maxconn      2000
+    default_backend     https_sri
+    
+backend https_sri
+    balance      roundrobin
+    server master1-api ${CP0_IP}:6443  check inter 10000 fall 2 rise 2 weight 1
+    server master2-api ${CP1_IP}:6443  check inter 10000 fall 2 rise 2 weight 1
+    server master3-api ${CP2_IP}:6443  check inter 10000 fall 2 rise 2 weight 1
+""" > ~/ikube/haproxy.cfg
+
+
+echo ">>>>>>>>>Keepalived Configuration>>>>>>>>>"
 
 PRIORITY=(100 50 30)
 STATE=("MASTER" "BACKUP" "BACKUP")
@@ -75,9 +127,9 @@ for index in 0 1 2; do
               path /healthz
               status_code 200
             }
-            connect_timeout 3
-            nb_get_retry 3
-            delay_before_retry 3
+            connect_timeout 300
+            nb_get_retry 30
+            delay_before_retry 30
         }
     }
 """
@@ -101,11 +153,11 @@ vrrp_instance VI_1 {
         auth_pass just0kk
     }
     virtual_ipaddress {
-        ${VIP}
+        ${VIP}/24
     }
 }
 
-virtual_server ${VIP} 6444 {
+virtual_server ${VIP} 6443 {
     delay_loop 6
     lb_algo loadbalance
     lb_kind DR
@@ -117,14 +169,18 @@ ${HEALTH_CHECK}
 }
 """ > ~/ikube/keepalived-${index}.conf
   scp ~/ikube/keepalived-${index}.conf ${ip}:/etc/keepalived/keepalived.conf
-
+  scp ~/ikube/haproxy.cfg ${ip}:/etc/haproxy/haproxy.cfg
   ssh ${ip} "
-    systemctl stop keepalived
     systemctl enable keepalived
+    systemctl enable haproxy
+    systemctl stop keepalived
     systemctl start keepalived
-    kubeadm reset -f
-    rm -rf /etc/kubernetes/pki/"
+    systemctl stop haproxy
+    systemctl start haproxy"
 done
+
+echo "============Keepalived+Haproxy Configuration End============"
+
 
 echo """
 apiVersion: kubeadm.k8s.io/v1beta1
