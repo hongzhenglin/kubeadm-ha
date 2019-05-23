@@ -149,9 +149,7 @@ for index in 0 1 2; do
         ${VIP}/24
     }
      #调用跟踪脚本
-    track_script {   
-
-    }
+     ${HEALTH_CHECK}
   }
 
   """ > ~/ikube/keepalived-${index}.conf
