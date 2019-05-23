@@ -84,7 +84,7 @@ rules:
   resourceNames: ["heapster"]
   verbs: ["proxy"]
 ---
-# 绑定serviceAccount与clusterrole.
+# 绑定serviceAccount与clusterrole
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -175,6 +175,7 @@ spec:
   ports:
     - port: 443
       targetPort: 8443
+      nodePort: 30001
   selector:
     k8s-app: kubernetes-dashboard
 ---
