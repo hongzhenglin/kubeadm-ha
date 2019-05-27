@@ -2,6 +2,9 @@
 
 kubeadm reset -f
 
+iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+ipvsadm -C
+
 function check_parm()
 {
   if [ "${2}" == "" ]; then
@@ -195,7 +198,8 @@ kubeadm init --config /etc/kubernetes/kubeadm-config.yaml
 mkdir -p $HOME/.kube
 cp -f /etc/kubernetes/admin.conf ${HOME}/.kube/config
 
-curl -fsSL https://raw.githubusercontent.com/hongzhenglin/kubeadm-ha/1.14.1/calico/calico.yaml | sed "s!8.8.8.8!${CP0_IP}!g" | sed "s!192.168.0.0/16!${CIDR}!g" | kubectl apply -f -
+# curl -fsSL https://raw.githubusercontent.com/hongzhenglin/kubeadm-ha/1.14.1/calico/calico.yaml | sed "s!8.8.8.8!${CP0_IP}!g" | sed "s!192.168.0.0/16!${CIDR}!g" | kubectl apply -f -
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
 
 JOIN_CMD=`kubeadm token create --print-join-command`
 
