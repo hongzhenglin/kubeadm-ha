@@ -2,6 +2,9 @@
 
 kubeadm reset -f
 
+iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+ipvsadm -C
+
 echo """
 apiVersion: kubeadm.k8s.io/v1beta1
 kind: ClusterConfiguration
@@ -20,7 +23,8 @@ mkdir -p $HOME/.kube
 rm -f $HOME/.kube/config
 cp -f /etc/kubernetes/admin.conf ${HOME}/.kube/config
 
-kubectl apply -f https://raw.githubusercontent.com/hongzhenglin/kubeadm-ha/branch-1.14.1/calico/calico.yaml
+# kubectl apply -f https://raw.githubusercontent.com/hongzhenglin/kubeadm-ha/branch-1.14.1/calico/calico.yaml
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
 
 echo "Cluster create finished."
 
